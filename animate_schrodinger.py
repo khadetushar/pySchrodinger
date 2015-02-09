@@ -6,6 +6,8 @@ First presented at http://jakevdp.github.com/blog/2012/09/05/quantum-python/
 Author: Jake Vanderplas <vanderplas@astro.washington.edu>
 License: BSD
 """
+import matplotlib
+matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
 from matplotlib import animation
@@ -57,7 +59,7 @@ t_max = 120
 frames = int(t_max / float(N_steps * dt))
 
 # specify constants
-hbar = 1.0   # planck's constant
+hbar = 1   # planck's constant
 m = 1.9      # particle mass
 
 # specify range in x coordinate

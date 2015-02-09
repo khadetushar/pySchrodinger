@@ -11,6 +11,7 @@ http://jakevdp.github.com/blog/2012/09/05/quantum-python/
 License: BSD style
 Please feel free to use and modify this, but keep the above information.
 """
+
 import numpy as np
 from scipy import fftpack
 
@@ -20,7 +21,14 @@ class Schrodinger(object):
     Class which implements a numerical solution of the time-dependent
     Schrodinger equation for an arbitrary potential
     """
-    def __init__(self, x, psi_x0, V_x, k0=None, hbar=1, m=1, t0=0.0):
+    def __init__(self,
+                 x, 
+                 psi_x0, 
+                 V_x, 
+                 k0 = None, 
+                 hbar = 1, 
+                 m = 1, 
+                 t0 = 0.0):
         """
         Parameters
         ----------
