@@ -22,12 +22,12 @@ class Schrodinger(object):
     Schrodinger equation for an arbitrary potential
     """
     def __init__(self,
-                 x, 
-                 psi_x0, 
-                 V_x, 
-                 k0 = None, 
-                 hbar = 1, 
-                 m = 1, 
+                 x,
+                 psi_x0,
+                 V_x,
+                 k0 = None,
+                 hbar = 1,
+                 m = 1,
                  t0 = 0.0):
         """
         Parameters
