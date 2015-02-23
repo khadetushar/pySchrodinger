@@ -148,10 +148,10 @@ class Schrodinger(object):
         assert wave_fn.shape == self.x.shape
         return np.sqrt((abs(wave_fn) ** 2).sum() * 2 * np.pi / self.dx)
 
-    def dispersion(self, wave_fn, x):
+    def dispersion(self, wave_fn, x, dx):
         assert wave_fn.shape == self.x.shape
-        return np.sqrt(np.sum((np.abs(wave_fn)**2)*x**2) -
-                np.sum((np.abs(wave_fn)**2)*x)**2)
+        return np.sqrt(np.sum((np.abs(wave_fn)**2)*x**2*dx) -
+                np.sum((np.abs(wave_fn)**2)*x*dx)**2)
 
     def solve(self, dt, Nsteps=1, eps=1e-3, max_iter=1000):
         """
