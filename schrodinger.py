@@ -148,10 +148,6 @@ class Schrodinger(object):
         assert wave_fn.shape == self.x.shape
         return np.sqrt((abs(wave_fn) ** 2).sum() * 2 * np.pi / self.dx)
 
-    def dispersion(self):
-        return np.sqrt(np.sum((np.abs(self.psi_x)**2)*self.x**2*self.dx) -
-                       np.sum((np.abs(self.psi_x)**2)*self.x*self.dx)**2)
-
     def solve(self, dt, Nsteps=1, eps=1e-3, max_iter=1000):
         """
         Propagate the Schrodinger equation forward in imaginary
