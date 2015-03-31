@@ -80,7 +80,7 @@ class Schrodinger(object):
         self.k = self.k0 + self.dk * np.arange(self.N)
 
         self.psi_x = psi_x0
-        self.compute_k_from_x()
+        self.psi_mod_k = fftpack.fft(self.psi_mod_x)
 
         # Variables which hold steps in evolution
         self.x_evolve_half = None
@@ -92,7 +92,7 @@ class Schrodinger(object):
         self.psi_mod_x = (psi_x * np.exp(-1j * self.k[0] * self.x)
                           * self.dx / np.sqrt(2 * np.pi))
         self.psi_mod_x /= self.norm
-        self.compute_k_from_x()
+        self.psi_mod_k = fftpack.fft(self.psi_mod_x)
 
     def _get_psi_x(self):
         return (self.psi_mod_x * np.exp(1j * self.k[0] * self.x)
@@ -102,8 +102,8 @@ class Schrodinger(object):
         assert psi_k.shape == self.x.shape
         self.psi_mod_k = psi_k * np.exp(1j * self.x[0] * self.dk
                                         * np.arange(self.N))
-        self.compute_x_from_k()
-        self.compute_k_from_x()
+        self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
+        self.psi_mod_k = fftpack.fft(self.psi_mod_x)
 
     def _get_psi_k(self):
         return self.psi_mod_k * np.exp(-1j * self.x[0] * self.dk
@@ -195,15 +195,15 @@ class Schrodinger(object):
         if Nsteps > 0:
             self.psi_mod_x *= self.x_evolve_half
             for num_iter in xrange(Nsteps - 1):
-                self.compute_k_from_x()
+                self.psi_mod_k = fftpack.fft(self.psi_mod_x)
                 self.psi_mod_k *= self.k_evolve
-                self.compute_x_from_k()
+                self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
                 self.psi_mod_x *= self.x_evolve
-            self.compute_k_from_x()
+            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.psi_mod_k *= self.k_evolve
-            self.compute_x_from_k()
+            self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
             self.psi_mod_x *= self.x_evolve_half
-            self.compute_k_from_x()
+            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.psi_mod_x /= self.norm
-            self.compute_k_from_x()
+            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.t += dt * Nsteps
