@@ -12,6 +12,8 @@ License: BSD style
 Please feel free to use and modify this, but keep the above information.
 """
 
+import os
+import pickle
 import numpy as np
 from scipy import fftpack
 
@@ -207,3 +209,55 @@ class Schrodinger(object):
             self.psi_mod_x /= self.norm
             self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.t += dt * Nsteps
+        return None
+
+    def evolve(
+            self,
+            nsteps,
+            nsubsteps,
+            dt,
+            base_name = None,
+            base_info = {}):
+        if type(base_name) != type(None):
+            if os.path.isfile(base_name + '_psi_x_full.npy'):
+                self.psi_x_full = np.load(
+                    base_name + '_psi_x_full.npy')
+                self.time = np.load(base_name + '_t.npy')
+                self.x    = np.load(base_name + '_x.npy')
+                self.k    = np.load(base_name + '_k.npy')
+                self.V_x  = np.load(base_name + '_V.npy')
+                base_info.update(pickle.load(open(base_name + '_info.pickle', 'r')))
+                self.dispersion_vs_t = \
+                    np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
+                            np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
+                return base_info
+        self.psi_x_full = np.zeros((nsteps+1,) + self.psi_x.shape,
+                                   self.psi_x.dtype)
+        self.psi_x_full[0] = self.psi_x
+        self.time = np.zeros(nsteps+1, type(self.t))
+        self.time[0] = self.t
+        for step in range(nsteps):
+            print('at step {0} of {1}'.format(step+1, nsteps))
+            self.time_step(dt, nsubsteps)
+            self.psi_x_full[step+1] = self.psi_x
+            self.time[step+1] = self.t
+        self.dispersion_vs_t = \
+            np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
+                    np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
+        if type(base_name) != type(None):
+            base_info['hbar'] = self.hbar
+            self.save(base_name = base_name,
+                      base_info = base_info)
+        return base_info
+
+    def save(self, base_name = 'tst', base_info = {}):
+        np.save(base_name + '_psi_x_full', self.psi_x_full)
+        np.save(base_name + '_t', self.time)
+        np.save(base_name + '_x', self.x)
+        np.save(base_name + '_k', self.k)
+        np.save(base_name + '_V', self.V_x)
+        base_info['hbar'] = self.hbar
+        pickle.dump(base_info,
+                    open(base_name + '_info.pickle', 'w'))
+        return None
+
