@@ -13,10 +13,20 @@ Please feel free to use and modify this, but keep the above information.
 """
 
 import os
-import pickle
+import sys
+if sys.version_info < (3,):
+    import cPickle as pickle
+else:
+    import pickle
 import numpy as np
-import pyfftw.interfaces.scipy_fftpack as fftpack
-import pyfftw
+
+try:
+    import pyfftw
+    import pyfftw.interfaces.scipy_fftpack as fftpack
+    found_pyfftw = True
+except:
+    from scipy import fftpack
+    found_pyfftw = False
 
 
 class Schrodinger(object):
@@ -90,14 +100,31 @@ class Schrodinger(object):
         self.x_evolve = None
         self.k_evolve = None
 
-        self.k_from_x_plan = pyfftw.FFTW(
-                self.psi_mod_x, self.psi_mod_k,
-                direction = 'FFTW_FORWARD',
-                flags = ('FFTW_MEASURE',))
-        self.x_from_k_plan = pyfftw.FFTW(
-                self.psi_mod_k, self.psi_mod_x,
-                direction = 'FFTW_BACKWARD',
-                flags = ('FFTW_MEASURE',))
+        if found_pyfftw:
+            # Align arrays for pyFFTW
+            self.psi_mod_k = pyfftw.n_byte_align(
+                self.psi_mod_k,
+                pyfftw.simd_alignment)
+            self.psi_mod_x = pyfftw.n_byte_align(
+                self.psi_mod_x,
+                pyfftw.simd_alignment)
+            # Try to read any wisdom from file
+            if (os.path.isfile('fftw_wisdom.pickle.gz')):
+                pyfftw.import_wisdom(
+                    pickle.load(gzip.open('fftw_wisdom.pickle.gz', 'rb')))
+            print('about to initialize the fftw plans, which can take a while')
+            self.k_from_x_plan = pyfftw.FFTW(
+                    self.psi_mod_x, self.psi_mod_k,
+                    direction = 'FFTW_FORWARD',
+                    flags = ('FFTW_MEASURE',))
+            self.x_from_k_plan = pyfftw.FFTW(
+                    self.psi_mod_k, self.psi_mod_x,
+                    direction = 'FFTW_BACKWARD',
+                    flags = ('FFTW_MEASURE',))
+            print('finalized fftw initialization')
+            # Save wisdom to file
+            bla = pyfftw.export_wisdom()
+            pickle.dump(bla, gzip.open('fftw_wisdom.pickle.gz', 'wb'))
 
     def _set_psi_x(self, psi_x):
         assert psi_x.shape == self.x.shape
@@ -189,7 +216,7 @@ class Schrodinger(object):
             old_psi = 1. * self.psi_x
         self.t = t0
 
-    def time_step(self, dt, Nsteps=1):
+    def time_step_FFTW(self, dt, Nsteps=1):
         """
         Perform a series of time-steps via the time-dependent Schrodinger
         Equation.
@@ -207,23 +234,49 @@ class Schrodinger(object):
         if Nsteps > 0:
             self.psi_mod_x *= self.x_evolve_half
             for num_iter in xrange(Nsteps - 1):
-                #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
                 self.k_from_x_plan.execute()
                 self.psi_mod_k *= self.k_evolve
-                #self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
                 self.x_from_k_plan.execute()
                 self.psi_mod_x *= self.x_evolve
-            #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.k_from_x_plan.execute()
             self.psi_mod_k *= self.k_evolve
-            #self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
             self.x_from_k_plan.execute()
             self.psi_mod_x *= self.x_evolve_half
-            #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.k_from_x_plan.execute()
             self.psi_mod_x /= self.norm
-            #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.k_from_x_plan.execute()
+            self.t += dt * Nsteps
+        return None
+
+    def time_step_fftpack(self, dt, Nsteps=1):
+        """
+        Perform a series of time-steps via the time-dependent Schrodinger
+        Equation.
+
+        Parameters
+        ----------
+        dt : float
+            The small time interval over which to integrate
+        Nsteps : float, optional
+            The number of intervals to compute.  The total change in time at
+            the end of this method will be dt * Nsteps (default = 1)
+        """
+        assert Nsteps >= 0
+        self.dt = dt
+        if Nsteps > 0:
+            self.psi_mod_x *= self.x_evolve_half
+            for num_iter in xrange(Nsteps - 1):
+                self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+                self.psi_mod_k *= self.k_evolve
+                self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
+                self.psi_mod_x *= self.x_evolve
+            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            self.psi_mod_k *= self.k_evolve
+            self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
+            self.psi_mod_x *= self.x_evolve_half
+            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            self.psi_mod_x /= self.norm
+            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
             self.t += dt * Nsteps
         return None
 
@@ -252,6 +305,10 @@ class Schrodinger(object):
         self.psi_x_full[0] = self.psi_x
         self.time = np.zeros(nsteps+1, type(self.t))
         self.time[0] = self.t
+        if found_pyfftw:
+            self.time_step = self.time_step_FFTW
+        else:
+            self.time_step = self.time_step_fftpack
         for step in range(nsteps):
             print('at step {0} of {1}'.format(step+1, nsteps))
             self.time_step(dt, nsubsteps)
