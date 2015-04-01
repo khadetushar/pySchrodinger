@@ -15,7 +15,8 @@ Please feel free to use and modify this, but keep the above information.
 import os
 import pickle
 import numpy as np
-from scipy import fftpack
+import pyfftw.interfaces.scipy_fftpack as fftpack
+import pyfftw
 
 
 class Schrodinger(object):
@@ -89,6 +90,15 @@ class Schrodinger(object):
         self.x_evolve = None
         self.k_evolve = None
 
+        self.k_from_x_plan = pyfftw.FFTW(
+                self.psi_mod_x, self.psi_mod_k,
+                direction = 'FFTW_FORWARD',
+                flags = ('FFTW_MEASURE',))
+        self.x_from_k_plan = pyfftw.FFTW(
+                self.psi_mod_k, self.psi_mod_x,
+                direction = 'FFTW_BACKWARD',
+                flags = ('FFTW_MEASURE',))
+
     def _set_psi_x(self, psi_x):
         assert psi_x.shape == self.x.shape
         self.psi_mod_x = (psi_x * np.exp(-1j * self.k[0] * self.x)
@@ -122,7 +132,7 @@ class Schrodinger(object):
                                          / self.hbar * self.dt)
             self.x_evolve = self.x_evolve_half * self.x_evolve_half
             self.k_evolve = np.exp(-0.5 * 1j * self.hbar / self.m
-                                    * (self.k * self.k) * self.dt)
+                                    * (self.k * self.k) * self.dt)/self.x.shape[0]
 
     def _get_norm(self):
         return self.wf_norm(self.psi_mod_x)
@@ -197,17 +207,23 @@ class Schrodinger(object):
         if Nsteps > 0:
             self.psi_mod_x *= self.x_evolve_half
             for num_iter in xrange(Nsteps - 1):
-                self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+                #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+                self.k_from_x_plan.execute()
                 self.psi_mod_k *= self.k_evolve
-                self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
+                #self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
+                self.x_from_k_plan.execute()
                 self.psi_mod_x *= self.x_evolve
-            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            self.k_from_x_plan.execute()
             self.psi_mod_k *= self.k_evolve
-            self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
+            #self.psi_mod_x = fftpack.ifft(self.psi_mod_k)
+            self.x_from_k_plan.execute()
             self.psi_mod_x *= self.x_evolve_half
-            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            self.k_from_x_plan.execute()
             self.psi_mod_x /= self.norm
-            self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            #self.psi_mod_k = fftpack.fft(self.psi_mod_x)
+            self.k_from_x_plan.execute()
             self.t += dt * Nsteps
         return None
 
