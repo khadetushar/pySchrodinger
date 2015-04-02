@@ -28,6 +28,8 @@ except:
     from scipy import fftpack
     found_pyfftw = False
 
+import gzip
+
 
 class Schrodinger(object):
     """
