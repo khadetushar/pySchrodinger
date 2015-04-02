@@ -24,11 +24,11 @@ try:
     import pyfftw
     import pyfftw.interfaces.scipy_fftpack as fftpack
     found_pyfftw = True
+    import gzip
 except:
     from scipy import fftpack
     found_pyfftw = False
 
-import gzip
 
 
 class Schrodinger(object):
