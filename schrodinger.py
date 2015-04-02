@@ -13,9 +13,20 @@ Please feel free to use and modify this, but keep the above information.
 """
 
 import os
-import pickle
+import sys
+if sys.version_info < (3,):
+    import cPickle as pickle
+else:
+    import pickle
 import numpy as np
-from scipy import fftpack
+
+try:
+    import pyfftw
+    import pyfftw.interfaces.scipy_fftpack as fftpack
+    found_pyfftw = True
+except:
+    from scipy import fftpack
+    found_pyfftw = False
 
 
 class Schrodinger(object):
@@ -89,6 +100,32 @@ class Schrodinger(object):
         self.x_evolve = None
         self.k_evolve = None
 
+        if found_pyfftw:
+            # Align arrays for pyFFTW
+            self.psi_mod_k = pyfftw.n_byte_align(
+                self.psi_mod_k,
+                pyfftw.simd_alignment)
+            self.psi_mod_x = pyfftw.n_byte_align(
+                self.psi_mod_x,
+                pyfftw.simd_alignment)
+            # Try to read any wisdom from file
+            if (os.path.isfile('fftw_wisdom.pickle.gz')):
+                pyfftw.import_wisdom(
+                    pickle.load(gzip.open('fftw_wisdom.pickle.gz', 'rb')))
+            print('about to initialize the fftw plans, which can take a while')
+            self.k_from_x_plan = pyfftw.FFTW(
+                    self.psi_mod_x, self.psi_mod_k,
+                    direction = 'FFTW_FORWARD',
+                    flags = ('FFTW_MEASURE',))
+            self.x_from_k_plan = pyfftw.FFTW(
+                    self.psi_mod_k, self.psi_mod_x,
+                    direction = 'FFTW_BACKWARD',
+                    flags = ('FFTW_MEASURE',))
+            print('finalized fftw initialization')
+            # Save wisdom to file
+            bla = pyfftw.export_wisdom()
+            pickle.dump(bla, gzip.open('fftw_wisdom.pickle.gz', 'wb'))
+
     def _set_psi_x(self, psi_x):
         assert psi_x.shape == self.x.shape
         self.psi_mod_x = (psi_x * np.exp(-1j * self.k[0] * self.x)
@@ -122,7 +159,7 @@ class Schrodinger(object):
                                          / self.hbar * self.dt)
             self.x_evolve = self.x_evolve_half * self.x_evolve_half
             self.k_evolve = np.exp(-0.5 * 1j * self.hbar / self.m
-                                    * (self.k * self.k) * self.dt)
+                                    * (self.k * self.k) * self.dt)/self.x.shape[0]
 
     def _get_norm(self):
         return self.wf_norm(self.psi_mod_x)
@@ -179,7 +216,39 @@ class Schrodinger(object):
             old_psi = 1. * self.psi_x
         self.t = t0
 
-    def time_step(self, dt, Nsteps=1):
+    def time_step_FFTW(self, dt, Nsteps=1):
+        """
+        Perform a series of time-steps via the time-dependent Schrodinger
+        Equation.
+
+        Parameters
+        ----------
+        dt : float
+            The small time interval over which to integrate
+        Nsteps : float, optional
+            The number of intervals to compute.  The total change in time at
+            the end of this method will be dt * Nsteps (default = 1)
+        """
+        assert Nsteps >= 0
+        self.dt = dt
+        if Nsteps > 0:
+            self.psi_mod_x *= self.x_evolve_half
+            for num_iter in xrange(Nsteps - 1):
+                self.k_from_x_plan.execute()
+                self.psi_mod_k *= self.k_evolve
+                self.x_from_k_plan.execute()
+                self.psi_mod_x *= self.x_evolve
+            self.k_from_x_plan.execute()
+            self.psi_mod_k *= self.k_evolve
+            self.x_from_k_plan.execute()
+            self.psi_mod_x *= self.x_evolve_half
+            self.k_from_x_plan.execute()
+            self.psi_mod_x /= self.norm
+            self.k_from_x_plan.execute()
+            self.t += dt * Nsteps
+        return None
+
+    def time_step_fftpack(self, dt, Nsteps=1):
         """
         Perform a series of time-steps via the time-dependent Schrodinger
         Equation.
@@ -236,6 +305,10 @@ class Schrodinger(object):
         self.psi_x_full[0] = self.psi_x
         self.time = np.zeros(nsteps+1, type(self.t))
         self.time[0] = self.t
+        if found_pyfftw:
+            self.time_step = self.time_step_FFTW
+        else:
+            self.time_step = self.time_step_fftpack
         for step in range(nsteps):
             print('at step {0} of {1}'.format(step+1, nsteps))
             self.time_step(dt, nsubsteps)
