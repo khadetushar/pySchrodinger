@@ -12,6 +12,7 @@ License: BSD style
 Please feel free to use and modify this, but keep the above information.
 """
 
+import time
 import os
 import sys
 if sys.version_info < (3,):
@@ -118,11 +119,13 @@ class Schrodinger(object):
             self.k_from_x_plan = pyfftw.FFTW(
                     self.psi_mod_x, self.psi_mod_k,
                     direction = 'FFTW_FORWARD',
-                    flags = ('FFTW_MEASURE',))
+                    flags = ('FFTW_MEASURE',),
+                    threads = 4)
             self.x_from_k_plan = pyfftw.FFTW(
                     self.psi_mod_k, self.psi_mod_x,
                     direction = 'FFTW_BACKWARD',
-                    flags = ('FFTW_MEASURE',))
+                    flags = ('FFTW_MEASURE',),
+                    threads = 4)
             print('finalized fftw initialization')
             # Save wisdom to file
             bla = pyfftw.export_wisdom()
@@ -240,6 +243,9 @@ class Schrodinger(object):
                 self.psi_mod_k *= self.k_evolve
                 self.x_from_k_plan.execute()
                 self.psi_mod_x *= self.x_evolve
+                #if np.where(np.isnan(self.psi_x))[0].shape[0] > 0:
+                #    print('found nans inside time_step, num_iter = {0}, t = {1}'.format(num_iter, self.t))
+                #    break
             self.k_from_x_plan.execute()
             self.psi_mod_k *= self.k_evolve
             self.x_from_k_plan.execute()
@@ -282,6 +288,23 @@ class Schrodinger(object):
             self.t += dt * Nsteps
         return None
 
+    def read_solution(
+            self,
+            base_name = None):
+        if type(base_name) != type(None):
+            if os.path.isfile(base_name + '_psi_x_full.npy'):
+                self.psi_x_full = np.load(
+                    base_name + '_psi_x_full.npy')
+                self.time = np.load(base_name + '_t.npy')
+                self.x    = np.load(base_name + '_x.npy')
+                self.k    = np.load(base_name + '_k.npy')
+                self.V_x  = np.load(base_name + '_V.npy')
+                base_info.update(pickle.load(open(base_name + '_info.pickle', 'r')))
+                self.dispersion_vs_t = \
+                    np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
+                            np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
+        return None
+
     def evolve(
             self,
             nsteps,
@@ -313,7 +336,13 @@ class Schrodinger(object):
             self.time_step = self.time_step_fftpack
         for step in range(nsteps):
             print('at step {0} of {1}'.format(step+1, nsteps))
+            t0 = time.time()
             self.time_step(dt, nsubsteps)
+            t1 = time.time()
+            print('time_step() took {0} seconds'.format(t1 - t0))
+            if np.where(np.isnan(self.psi_x))[0].shape[0] > 0:
+                print('found nans inside evolve')
+                break
             self.psi_x_full[step+1] = self.psi_x
             self.time[step+1] = self.t
         self.dispersion_vs_t = \
