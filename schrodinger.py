@@ -169,10 +169,10 @@ class Schrodinger(object):
     def _get_norm(self):
         return self.wf_norm(self.psi_mod_x)
 
-    psi_x = property(_get_psi_x, _set_psi_x)
-    psi_k = property(_get_psi_k, _set_psi_k)
-    norm = property(_get_norm)
-    dt = property(_get_dt, _set_dt)
+    self.psi_x = property(_get_psi_x, _set_psi_x)
+    self.psi_k = property(_get_psi_k, _set_psi_k)
+    self.norm = property(_get_norm)
+    self.dt = property(_get_dt, _set_dt)
 
     def compute_k_from_x(self):
         self.psi_mod_k = fftpack.fft(self.psi_mod_x)
@@ -312,6 +312,8 @@ class Schrodinger(object):
             dt,
             base_name = None,
             base_info = {}):
+        print('inside evolve')
+        print(nsteps, nsubsteps, dt)
         if type(base_name) != type(None):
             if os.path.isfile(base_name + '_psi_x_full.npy'):
                 self.psi_x_full = np.load(
