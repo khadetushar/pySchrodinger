@@ -164,15 +164,17 @@ class Schrodinger(object):
                                          / self.hbar * self.dt)
             self.x_evolve = self.x_evolve_half * self.x_evolve_half
             self.k_evolve = np.exp(-0.5 * 1j * self.hbar / self.m
-                                    * (self.k * self.k) * self.dt)/self.x.shape[0]
+                                    * (self.k * self.k) * self.dt)
+            if found_pyfftw:
+                self.k_evolve /= self.x.shape[0]
 
     def _get_norm(self):
         return self.wf_norm(self.psi_mod_x)
 
-    self.psi_x = property(_get_psi_x, _set_psi_x)
-    self.psi_k = property(_get_psi_k, _set_psi_k)
-    self.norm = property(_get_norm)
-    self.dt = property(_get_dt, _set_dt)
+    psi_x = property(_get_psi_x, _set_psi_x)
+    psi_k = property(_get_psi_k, _set_psi_k)
+    norm = property(_get_norm)
+    dt = property(_get_dt, _set_dt)
 
     def compute_k_from_x(self):
         self.psi_mod_k = fftpack.fft(self.psi_mod_x)
