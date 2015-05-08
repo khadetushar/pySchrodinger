@@ -121,10 +121,10 @@ class GetData:
                  xmax =  2.**6*np.pi):
         self.nsteps = nsteps
         self.resolution = resolution
-        self.timestep = 1.
+        self.timestep = timestep
         self.hbar = float(hbar)
         self.sigma = self.hbar**(0.5) 
-        self.ell = self.hbar 
+        self.ell = 10.0*self.hbar
         self.dx = np.pi * self.hbar / self.resolution
 #        if self.dx / self.ell > 0.1:
 #            print ('dx/ell = {0} for hbar = {1}'.format(self.dx/self.ell, self.hbar))
@@ -182,3 +182,4 @@ class read_solution:
                     np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
                             np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
         return None
+

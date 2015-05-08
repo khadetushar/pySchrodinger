@@ -164,7 +164,9 @@ class Schrodinger(object):
                                          / self.hbar * self.dt)
             self.x_evolve = self.x_evolve_half * self.x_evolve_half
             self.k_evolve = np.exp(-0.5 * 1j * self.hbar / self.m
-                                    * (self.k * self.k) * self.dt)/self.x.shape[0]
+                                    * (self.k * self.k) * self.dt)
+            if found_pyfftw:
+                self.k_evolve /= self.x.shape[0]
 
     def _get_norm(self):
         return self.wf_norm(self.psi_mod_x)
@@ -312,6 +314,8 @@ class Schrodinger(object):
             dt,
             base_name = None,
             base_info = {}):
+        print('inside evolve')
+        print(nsteps, nsubsteps, dt)
         if type(base_name) != type(None):
             if os.path.isfile(base_name + '_psi_x_full.npy'):
                 self.psi_x_full = np.load(
