@@ -54,14 +54,17 @@ def squared_wavefunction(t, x, a, h, m, x0, p0):
 
 def free_particle_dispersion(t, a, h, m):
     return (a/np.sqrt(2))*np.sqrt(1 + (h*t/(m*a**2))**2)
+    
+def pure_cusp_dispersion(t, a, h, m):
+    return 0
 
-def parabolic_dispersion_Hagedorn(t, a, c):
-    return  (1/np.sqrt(2))*t*a*np.cosh(2*c*t)
+def inverted_oscillator_dispersion(t, a, h, m, C):
+    return  a**2*np.cosh(C**(.5)*t)**2 + ((h*t)/(2*C**(.5)*m*a))**2*np.sinh(C**(.5)*t)**2
 
 def ExtremalCharacteristics(t, alpha):
-    const = ((1-alpha)**2/(2*(1+alpha)))**(1/(1-alpha))
+    const = (.5)*(1-alpha)*(2/(1+alpha))**(.5)
     exponent = (2/(1-alpha))
-    return const*t**exponent, - constant0*t**exponent
+    return (const*t)**exponent, -(const*t)**exponent
 
 ################################################################################
 ######################### Fractional Brownian Potential ########################
@@ -110,7 +113,17 @@ def LocalizedSmoothConicalPotential(ell,
     v = zero**e
     ConicalPotential = .5*((1./v)*(v - np.abs(x)**(e)))
     bumpfunction = np.piecewise(x, [abs(x) < zero, abs(x) >= zero], [1, 0])
-    return  ndimage.gaussian_filter(ConicalPotential*bumpfunction, ell)  
+    LocalizedConicalPotential = ConicalPotential*bumpfunction
+    return  ndimage.gaussian_filter(LocalizedConicalPotential, ell)  
+    
+def SmoothConicalPotential(ell,
+                           x, 
+                           a = 1.3):
+    PureConicalPotential = -(np.abs(x)**(1+a))/(1+a)
+    return  ndimage.gaussian_filter(PureConicalPotential, ell)  
+
+def InvertedOscillatorPotential(x):
+    return  -(np.abs(x)**(2))/2
 
 class GetData:
     def __init__(self,
@@ -124,7 +137,7 @@ class GetData:
         self.timestep = timestep
         self.hbar = float(hbar)
         self.sigma = self.hbar**(0.5) 
-        self.ell = 10.0*self.hbar
+        self.ell = self.sigma
         self.dx = np.pi * self.hbar / self.resolution
 #        if self.dx / self.ell > 0.1:
 #            print ('dx/ell = {0} for hbar = {1}'.format(self.dx/self.ell, self.hbar))
