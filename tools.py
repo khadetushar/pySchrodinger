@@ -35,18 +35,21 @@ def gaussian_wavepacket(t, x, a, h, m, x0, p0):
     phase = np.exp(1j*(p0*x - E*t)/h)
     return ((A/np.sqrt(a*beta))*phase*np.exp(-(x - x0 - (p0/m)*t)**2/(2*a**2*beta)))
 
-def inverse_parabola_wavepacket(t, x, a, h, m, x0, p0, c):
-    const = (2*c*np.sqrt(2*m))/h**2
-    scaledT = (const)**(-1)*(1-np.exp(-const*t))
-    scaledX = x*np.exp(-c*np.sqrt(2*m)*t/h**2)
-    phase = np.exp((1j*np.sqrt(2*m)*c*x**2)/(2*h))
-    scale = np.exp(-c*t/np.sqrt(2*m))
-    return gaussian_wavepacket(scaledT, scaledX, a, h, m, x0, p0)*phase*scale
-
-def squared_wavefunction(t, x, a, h, m, x0, p0):
+def squared_wavefunction_FREE(t, x, a, h, m, x0, p0):
     beta = 1 + 1j*(h*t)/(m*a**2)
     return (1/((np.pi)**(1/2.)*a*abs(beta))*
                 np.exp(-(x - x0 - (p0/m)*t)**2/(a**2 * abs(beta**2))))
+                
+def inverse_parabola_wavepacketBARTON(t, x, a, h, m, x0, C):
+    b = .5*np.sqrt(a**2 + a**(-2))
+    B = 0.5*a**2*np.cosh(C**(.5)*t)**2 + 0.5*(h/(C**(.5)*m*a))**2*np.sinh(C**(.5)*t)**2
+    psi = (np.sqrt(np.sqrt(np.pi)*(a*np.cosh(t)+1j*a**(-1)*np.sinh(t))))**(-1) * np.exp(-0.5*x**2*(1-2*1j*b**2*np.sinh(2*t))*B**(-1))          
+    return psi
+    
+def squared_wavefunctionBARTON(t, x, a, h, m, x0, C):
+    B = 0.5*a**2*np.cosh(C**(.5)*t)**2 + 0.5*(h/(C**(.5)*m*a))**2*np.sinh(C**(.5)*t)**2
+    psisquared = (np.sqrt(2*np.pi)*B**(0.5))**(-1) * np.exp(-0.5*(x-x0)**2*(B)**(-1))       
+    return psisquared
 
 ################################################################################
 ######################### Analytic Dispersions #################################
@@ -55,11 +58,11 @@ def squared_wavefunction(t, x, a, h, m, x0, p0):
 def free_particle_dispersion(t, a, h, m):
     return (a/np.sqrt(2))*np.sqrt(1 + (h*t/(m*a**2))**2)
     
-def pure_cusp_dispersion(t, a, h, m):
-    return 0
+def pure_cusp_dispersion(t, a):
+    return (0.5*(1-a)*(2/(1+a))**(0.5)*(t))**(4/(1-a))
 
 def inverted_oscillator_dispersion(t, a, h, m, C):
-    return  a**2*np.cosh(C**(.5)*t)**2 + ((h*t)/(2*C**(.5)*m*a))**2*np.sinh(C**(.5)*t)**2
+    return  0.5*a**2*np.cosh(C**(.5)*t)**2 + 0.5*(h/(C**(.5)*m*a))**2*np.sinh(C**(.5)*t)**2
 
 def ExtremalCharacteristics(t, alpha):
     const = (.5)*(1-alpha)*(2/(1+alpha))**(.5)
