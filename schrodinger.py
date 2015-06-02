@@ -290,21 +290,29 @@ class Schrodinger(object):
             self.t += dt * Nsteps
         return None
 
+    def get_full_dispersion(self):
+        self.dispersion_vs_t = \
+            np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
+                    np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
+        self.kdispersion_vs_t = \
+            np.sqrt(np.sum((np.abs(self.psi_k_full)**2)*self.k**2*self.dk, axis = 1) -
+                    np.sum((np.abs(self.psi_k_full)**2)*self.k*self.dk, axis = 1)**2)
+        return None
+
     def read_solution(
             self,
             base_name = None):
         if type(base_name) != type(None):
             if os.path.isfile(base_name + '_psi_x_full.npy'):
+                self.psi_k_full = np.load(
+                    base_name + '_psi_k_full.npy')
                 self.psi_x_full = np.load(
                     base_name + '_psi_x_full.npy')
                 self.time = np.load(base_name + '_t.npy')
                 self.x    = np.load(base_name + '_x.npy')
                 self.k    = np.load(base_name + '_k.npy')
                 self.V_x  = np.load(base_name + '_V.npy')
-                base_info.update(pickle.load(open(base_name + '_info.pickle', 'r')))
-                self.dispersion_vs_t = \
-                    np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
-                            np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
+                self.get_full_dispersion()
         return None
 
     def evolve(
@@ -318,17 +326,12 @@ class Schrodinger(object):
         print(nsteps, nsubsteps, dt)
         if type(base_name) != type(None):
             if os.path.isfile(base_name + '_psi_x_full.npy'):
-                self.psi_x_full = np.load(
-                    base_name + '_psi_x_full.npy')
-                self.time = np.load(base_name + '_t.npy')
-                self.x    = np.load(base_name + '_x.npy')
-                self.k    = np.load(base_name + '_k.npy')
-                self.V_x  = np.load(base_name + '_V.npy')
+                self.read_solution(base_name = base_name)
                 base_info.update(pickle.load(open(base_name + '_info.pickle', 'r')))
-                self.dispersion_vs_t = \
-                    np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
-                            np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
                 return base_info
+        self.psi_k_full = np.zeros((nsteps+1,) + self.psi_k.shape,
+                                   self.psi_k.dtype)
+        self.psi_k_full[0] = self.psi_k
         self.psi_x_full = np.zeros((nsteps+1,) + self.psi_x.shape,
                                    self.psi_x.dtype)
         self.psi_x_full[0] = self.psi_x
@@ -348,10 +351,9 @@ class Schrodinger(object):
                 print('found nans inside evolve')
                 break
             self.psi_x_full[step+1] = self.psi_x
+            self.psi_k_full[step+1] = self.psi_k
             self.time[step+1] = self.t
-        self.dispersion_vs_t = \
-            np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
-                    np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
+        self.get_full_dispersion()
         if type(base_name) != type(None):
             base_info['hbar'] = self.hbar
             self.save(base_name = base_name,
@@ -360,6 +362,7 @@ class Schrodinger(object):
 
     def save(self, base_name = 'tst', base_info = {}):
         np.save(base_name + '_psi_x_full', self.psi_x_full)
+        np.save(base_name + '_psi_k_full', self.psi_k_full)
         np.save(base_name + '_t', self.time)
         np.save(base_name + '_x', self.x)
         np.save(base_name + '_k', self.k)
