@@ -57,17 +57,25 @@ def squared_wavefunctionBARTON(t, x, a, h, m, x0, C):
 
 def free_particle_dispersion(t, a, h, m):
     return (a/np.sqrt(2))*np.sqrt(1 + (h*t/(m*a**2))**2)
+  
+def inverted_oscillator_dispersion(t, a, h, m, C):
+    return  0.5*a**2*np.cosh(C**(.5)*t)**2 + 0.5*(h/(C**(.5)*m*a))**2*np.sinh(C**(.5)*t)**2  
     
 def pure_cusp_dispersion(t, a):
-    return (0.5*(1-a)*(2/(1+a))**(0.5)*(t))**(4/(1-a))
+    return ExtremalCharacteristics(t, a)**2
 
-def inverted_oscillator_dispersion(t, a, h, m, C):
-    return  0.5*a**2*np.cosh(C**(.5)*t)**2 + 0.5*(h/(C**(.5)*m*a))**2*np.sinh(C**(.5)*t)**2
-
-def ExtremalCharacteristics(t, alpha):
-    const = (.5)*(1-alpha)*(2/(1+alpha))**(.5)
-    exponent = (2/(1-alpha))
-    return (const*t)**exponent, -(const*t)**exponent
+def pure_cusp_k_dispersion(t, a):
+    return ExtremalCharacteristicsK(t, a)**2
+    
+def ExtremalCharacteristics(t, a):
+    nu = (2/(1-a))
+    const = nu**(-1)*(2/(1+a))**(0.5)
+    return (const*t)**nu
+    
+def ExtremalCharacteristicsK(t, a):
+    nu = (2/(1-a))
+    const = (2/(1+a))**(0.5)/nu
+    return (const*nu)*(const*t)**(nu-1)
 
 ################################################################################
 ######################### Fractional Brownian Potential ########################
@@ -134,13 +142,15 @@ class GetData:
                  resolution = 2**6,
                  timestep = 1.,
                  hbar = 1., 
+                 beta = 0.5, 
+                 gamma = 0.5, 
                  xmax =  2.**6*np.pi):
         self.nsteps = nsteps
         self.resolution = resolution
         self.timestep = timestep
         self.hbar = float(hbar)
-        self.sigma = self.hbar**(0.5) 
-        self.ell = self.sigma
+        self.sigma = self.hbar**(beta) 
+        self.ell = self.hbar**(gamma) 
         self.dx = np.pi * self.hbar / self.resolution
 #        if self.dx / self.ell > 0.1:
 #            print ('dx/ell = {0} for hbar = {1}'.format(self.dx/self.ell, self.hbar))
@@ -189,13 +199,20 @@ class read_solution:
             if os.path.isfile(base_name + '_psi_x_full.npy'):
                 self.psi_x_full = np.load(
                     base_name + '_psi_x_full.npy')
+                self.psi_k_full = np.load(
+                    base_name + '_psi_k_full.npy')
                 self.time = np.load(base_name + '_t.npy')
                 self.x    = np.load(base_name + '_x.npy')
+                self.k    = np.load(base_name + '_k.npy')
                 self.dx = self.x[1] - self.x[0]
+                self.dk = self.k[1] - self.k[0]
                 self.k    = np.load(base_name + '_k.npy')
                 self.V_x  = np.load(base_name + '_V.npy')
                 self.dispersion_vs_t = \
                     np.sqrt(np.sum((np.abs(self.psi_x_full)**2)*self.x**2*self.dx, axis = 1) -
                             np.sum((np.abs(self.psi_x_full)**2)*self.x*self.dx, axis = 1)**2)
+                self.kdispersion_vs_t = \
+                    np.sqrt(np.sum((np.abs(self.psi_k_full)**2)*self.k**2*self.dk, axis = 1) -
+                            np.sum((np.abs(self.psi_k_full)**2)*self.k*self.dk, axis = 1)**2)
         return None
 
