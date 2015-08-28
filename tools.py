@@ -9,6 +9,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
+from matplotlib import rcParams
+rcParams.update({'figure.autolayout': True})
+
 import subprocess
 import pickle
 import gzip
